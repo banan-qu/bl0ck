@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block extra_css %}
+<style>
+    .market-item {
+        padding: 12px;
+        background: color-mix(in srgb, var(--panel) 88%, transparent);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        transition: background 0.2s, border-color 0.2s, transform 0.1s;
+        background-image: repeating-linear-gradient(135deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 1px, transparent 1px, transparent 6px);
+    }
+    .market-item:hover {
+        background: color-mix(in srgb, var(--panel) 96%, var(--accent) 4%);
+        border-color: color-mix(in srgb, var(--border) 70%, var(--accent) 30%);
+    }
+    .price-tag { color: var(--accent); font-weight: 700; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="header">
+    <a href="{{ url_for('search') }}" class="back-btn">← К чатам</a>
+    <h3 style="flex: 1;">Маркет</h3>
+</div>
+
+<div class="card">
+    <h3 style="margin-bottom: 15px;">Премиум</h3>
+    {% if user.premium %}
+    <div style="color: #00ff88; font-weight: 600;">✓ У вас есть премиум</div>
+    {% else %}
+    <div style="color: var(--muted); margin-bottom: 10px;">Открывает темы, баннер, эмодзи и реакции</div>
+    <a href="{{ url_for('buy_premium') }}" class="btn">Купить премиум за 500 зан</a>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h3 style="margin-bottom: 15px;">Мои юзернеймы</h3>
+    {% if my_usernames %}
+    {% for un in my_usernames %}
+    <div class="market-item">
+        <div style="flex: 1; min-width: 150px;">
+            <div style="font-weight: bold;">@{{ un.uname }}</div>
+            <div style="font-size: 12px; color: var(--muted);">Счёт: {{ un.score }} | NFT: {% if un.is_nft %}Да{% else %}Нет{% endif %} | Редкость: {{ un.rarity }}</div>
+        </div>
+        {% if not un.is_nft %}
+        <form method="POST" action="{{ url_for('nft') }}">
+            <input type="hidden" name="uname_id" value="{{ un.id }}">
+            <button type="submit" class="btn" style="padding: 6px 12px; font-size: 12px;">Сделать NFT</button>
+        </form>
+        {% else %}
+        {% if un.for_sale %}
+        <div class="price-tag">На продаже: {{ un.sale_price }} зан</div>
+        <form method="POST" action="{{ url_for('market_unsell') }}">
+            <input type="hidden" name="uname_id" value="{{ un.id }}">
+            <button type="submit" class="btn" style="padding: 6px 12px; font-size: 12px; background: #c0392b; color: #fff;">Снять</button>
+        </form>
+        {% else %}
+        <form method="POST" action="{{ url_for('market_sell') }}" style="display: flex; gap: 6px; align-items: center;">
+            <input type="hidden" name="uname_id" value="{{ un.id }}">
+            <input type="number" name="price" class="input" style="margin-bottom: 0; width: 110px; padding: 6px 8px;" placeholder="Цена" required min="0">
+            <button type="submit" class="btn" style="padding: 6px 12px; font-size: 12px;">Выставить</button>
+        </form>
+        {% endif %}
+        {% endif %}
+    </div>
+    {% endfor %}
+    {% else %}
+    <div style="color: var(--muted); text-align: center; padding: 10px;">Юзов нет</div>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h3 style="margin-bottom: 15px;">Лоты NFT</h3>
+    {% if for_sale %}
+    {% for lot in for_sale %}
+    <div class="market-item">
+        <div style="flex: 1; min-width: 150px;">
+            <div style="font-weight: bold;">@{{ lot.uname }}</div>
+            <div style="font-size: 12px; color: var(--muted);">Владелец: {{ lot.owner_name }} | Счёт: {{ lot.score }} | Редкость: {{ lot.rarity }}</div>
+            <div class="price-tag" style="margin-top: 2px;">{{ lot.sale_price }} зан</div>
+        </div>
+        <form method="POST" action="{{ url_for('market_buy_uname') }}">
+            <input type="hidden" name="uname_id" value="{{ lot.id }}">
+            <button type="submit" class="btn" style="padding: 6px 14px;">Купить</button>
+        </form>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div style="color: var(--muted); text-align: center; padding: 10px;">Лотов пока нет</div>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h3 style="margin-bottom: 15px;">Темы</h3>
+    {% for key, theme in market_themes.items() %}
+    <div class="market-item">
+        <div style="flex: 1;">
+            <div style="font-weight: bold;">{{ theme.name }}</div>
+            <div class="price-tag">{{ theme.price }} зан</div>
+        </div>
+        {% set owned_list = user.owned_themes.split(',') if user.owned_themes else [] %}
+        {% if key in owned_list %}
+        <span style="color: #00ff88; font-weight: 600;">Куплено</span>
+        {% else %}
+        <form method="POST" action="{{ url_for('market_buy_theme') }}">
+            <input type="hidden" name="theme_key" value="{{ key }}">
+            <button type="submit" class="btn" style="padding: 6px 14px;">Купить</button>
+        </form>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+<div class="card">
+    <h3 style="margin-bottom: 15px;">Премиум-эмодзи</h3>
+    {% for emoji, price in premium_emojis.items() %}
+    <div class="market-item">
+        <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
+            <span style="font-size: 26px;">{{ emoji }}</span>
+            <span class="price-tag">{{ price }} зан</span>
+        </div>
+        {% set owned_em = user.owned_emojis.split(',') if user.owned_emojis else [] %}
+        {% if emoji in owned_em %}
+        <span style="color: #00ff88; font-weight: 600;">Куплено</span>
+        {% else %}
+        <form method="POST" action="{{ url_for('market_buy_emoji') }}">
+            <input type="hidden" name="emoji" value="{{ emoji }}">
+            <button type="submit" class="btn" style="padding: 6px 14px;">Купить</button>
+        </form>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

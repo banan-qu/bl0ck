@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="header">
+    <div style="flex: 1;">
+        <h2>Чаты</h2>
+    </div>
+    <a href="{{ url_for('profile', user_id=current_user.id) }}" class="avatar" style="width: 40px; height: 40px; font-size: 14px;">
+        {% if current_user.avatar %}
+        <img src="{{ url_for('static', filename='uploads/' + current_user.avatar) }}">
+        {% else %}
+        {{ current_user.username[0].upper() }}
+        {% endif %}
+    </a>
+</div>
+
+<div class="card">
+    <h3 style="margin-bottom: 10px;">Поиск пользователей</h3>
+    <input type="text" id="userSearch" class="input" placeholder="Поиск по имени..." onkeyup="searchUsers()">
+    <div id="userList">
+        {% for u in users %}
+        <a href="{{ url_for('chat', other_id=u.id) }}" style="text-decoration: none; color: var(--text);">
+            <div style="display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; margin-bottom: 5px;" onmouseover="this.style.background='var(--panel)'" onmouseout="this.style.background='transparent'">
+                <div class="avatar" style="width: 40px; height: 40px; font-size: 14px;">
+                    {% if u.avatar %}
+                    <img src="{{ url_for('static', filename='uploads/' + u.avatar) }}">
+                    {% else %}
+                    {{ u.username[0].upper() }}
+                    {% endif %}
+                </div>
+                <div style="flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <span>{{ u.username }}</span>
+                        {% if u.premium_emoji %}<span>{{ u.premium_emoji }}</span>{% endif %}
+                        {% if u.is_admin %}<span style="color: #ffd700;">✔</span>{% elif u.verified %}<span style="color: #3399ff;">✓</span>{% endif %}
+                    </div>
+                    <div style="font-size: 12px;">
+                        {% if u.is_online %}<span class="status-online">● В сети</span>{% elif u.blocked %}<span class="status-blocked">🌐 200</span>{% else %}<span class="status-offline">● Не в сети</span>{% endif %}
+                    </div>
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+
+{% if chat_list %}
+<div class="card">
+    <h3 style="margin-bottom: 10px;">Мои чаты</h3>
+    {% for item in chat_list %}
+    <a href="{{ url_for('chat', other_id=item.chat.other_id) }}" style="text-decoration: none; color: var(--text);">
+        <div style="display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; margin-bottom: 5px;" onmouseover="this.style.background='var(--panel)'" onmouseout="this.style.background='transparent'">
+            <div class="avatar" style="width: 50px; height: 50px;">
+                {% if item.chat.avatar %}
+                <img src="{{ url_for('static', filename='uploads/' + item.chat.avatar) }}">
+                {% else %}
+                {{ item.chat.other_username[0].upper() }}
+                {% endif %}
+            </div>
+            <div style="flex: 1; min-width: 0;">
+                <div style="display: flex; align-items: center; gap: 5px; justify-content: space-between;">
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <span style="font-weight: bold;">{{ item.chat.other_username }}</span>
+                        {% if item.chat.premium_emoji %}<span>{{ item.chat.premium_emoji }}</span>{% endif %}
+                        {% if item.chat.is_admin %}<span style="color: #ffd700;">✔</span>{% elif item.chat.verified %}<span style="color: #3399ff;">✓</span>{% endif %}
+                    </div>
+                    {% if item.unread > 0 %}
+                    <span style="background: var(--accent); color: var(--accent-text); border-radius: 50%; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-size: 11px;">{{ item.unread }}</span>
+                    {% endif %}
+                </div>
+                <div style="font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    {% if item.last_msg %}
+                        {% if item.last_msg.is_deleted %}сообщение удалено{% elif item.last_msg.is_sticker %}{{ item.last_msg.content }} стикер{% elif item.last_msg.is_photo %}Фото{% else %}{{ item.last_msg.content }}{% endif %}
+                    {% endif %}
+                </div>
+                <div style="font-size: 11px;">
+                    {% if item.chat.is_online %}<span class="status-online">● В сети</span>{% else %}<span class="status-offline">● Не в сети</span>{% endif %}
+                </div>
+            </div>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function searchUsers() {
+    let input = document.getElementById('userSearch').value.toLowerCase();
+    let items = document.querySelectorAll('#userList > a');
+    items.forEach(item => {
+        let text = item.textContent.toLowerCase();
+        if (text.includes(input)) {
+            item.style.display = '';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+</script>
+{% endblock %}

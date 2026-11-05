@@ -1,0 +1,341 @@
+{% extends "base.html" %}
+{% block extra_css %}
+<style>
+    body { padding-bottom: 0; }
+    .container { max-width: 520px; height: 100vh; display: flex; flex-direction: column; padding-bottom: 0; }
+    .bottom-nav { display: none; }
+    #messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 10px 4px;
+        margin-bottom: 0;
+        max-height: none !important;
+        scrollbar-width: none; /* Firefox */
+        -ms-overflow-style: none; /* IE/Edge */
+    }
+    #messages::-webkit-scrollbar {
+        display: none; /* Chrome/Safari */
+        width: 0;
+        height: 0;
+    }
+    .chat-input-wrap {
+        position: sticky;
+        bottom: 0;
+        background: color-mix(in srgb, var(--card) 95%, transparent);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 10px;
+        margin: 8px 0 10px 0;
+        backdrop-filter: blur(8px);
+        box-shadow: 0 -4px 16px rgba(0,0,0,0.1);
+        z-index: 50;
+    }
+    .msg-bubble {
+        display: inline-block;
+        width: auto;
+        max-width: 72%;
+        min-width: 0;
+        padding: 3px 7px;
+        border-radius: 9px;
+        position: relative;
+        border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+        line-height: 1.15;
+        font-size: 14px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+        backdrop-filter: blur(2px);
+        vertical-align: top;
+        box-sizing: border-box;
+        white-space: normal;
+    }
+    .msg-bubble:hover {
+        border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+    }
+    .msg-bubble .msg-text { 
+        display: inline;
+        margin: 0;
+        padding: 0;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+    .msg-bubble .msg-menu-btn {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        margin: 0 !important;
+        padding: 0;
+        width: 18px;
+        height: 18px;
+        font-size: 11px;
+        line-height: 16px;
+        text-align: center;
+        border-radius: 50%;
+        opacity: 0.45;
+        background: color-mix(in srgb, var(--card) 96%, var(--panel));
+        border: 1px solid var(--border);
+        color: var(--text);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+        transition: opacity 0.15s, transform 0.1s;
+        cursor: pointer;
+    }
+    .msg-bubble:hover .msg-menu-btn,
+    .msg-bubble .msg-menu-btn:hover { opacity: 1; transform: scale(1.05); }
+    .msg-plain {
+        max-width: 78%;
+        position: relative;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+    }
+    .msg-plain img {
+        display: block;
+        max-width: 100%;
+        max-height: 280px;
+        width: auto;
+        height: auto;
+        border-radius: 12px;
+        object-fit: contain;
+        border: 1px solid var(--border);
+        background: var(--panel);
+    }
+    .sticker-big {
+        font-size: 64px;
+        line-height: 1;
+        display: inline-block;
+    }
+    .msg-menu-btn {
+        background: color-mix(in srgb, var(--panel) 80%, transparent);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 2px 6px;
+        cursor: pointer;
+        color: inherit;
+        font-size: 14px;
+        margin-left: 6px;
+        vertical-align: middle;
+    }
+</style>
+{% endblock %}
+{% block content %}
+<div class="header" style="margin-top: 5px;">
+    <a href="{{ url_for('search') }}" class="back-btn">← К чатам</a>
+    <a href="{{ url_for('profile', user_id=other.id) }}" style="text-decoration: none; color: var(--text); display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0;">
+        <div class="avatar" style="width: 40px; height: 40px; font-size: 14px; flex-shrink: 0;">
+            {% if other.avatar %}
+            <img src="{{ url_for('static', filename='uploads/' + other.avatar) }}">
+            {% else %}
+            {{ other.username[0].upper() }}
+            {% endif %}
+        </div>
+        <div style="min-width: 0;">
+            <div style="display: flex; align-items: center; gap: 5px; flex-wrap: wrap;">
+                <span style="font-weight: 600;">{{ other.username }}</span>
+                {% if other.premium_emoji %}<span>{{ other.premium_emoji }}</span>{% endif %}
+                {% if other.is_admin %}<span style="color: #ffd700;">✔</span>{% elif other.verified %}<span style="color: #3399ff;">✓</span>{% endif %}
+            </div>
+            <div style="font-size: 11px;">
+                {% if block1 or block2 %}<span class="status-blocked">🌐 200</span>{% elif other.is_online %}<span class="status-online">В сети</span>{% else %}<span class="status-offline">Не в сети</span>{% endif %}
+            </div>
+        </div>
+    </a>
+</div>
+
+<div id="messages">
+    {% for msg in messages %}
+    <div style="margin-bottom: 14px; display: flex; flex-direction: column; {% if msg.sender_id == current_user.id %}align-items: flex-end;{% else %}align-items: flex-start;{% endif %}">
+        {% if msg.reply_to %}
+        {% set reply_msg = messages|selectattr('id', 'equalto', msg.reply_to)|first %}
+        {% if reply_msg %}
+        <div style="max-width: 78%; padding: 5px 10px; background: color-mix(in srgb, var(--panel) 85%, transparent); border-left: 3px solid var(--accent); border-radius: 10px; margin-bottom: 4px; font-size: 12px; color: var(--muted); word-wrap: break-word; overflow-wrap: break-word;">
+            <div style="font-weight: bold; color: var(--accent);">{{ reply_msg.sender_username }}</div>
+            <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">
+                {% if reply_msg.is_deleted %}сообщение удалено{% elif reply_msg.is_sticker %}{{ reply_msg.content }}{% elif reply_msg.is_photo %}Фото{% else %}{{ reply_msg.content[:60] }}{% endif %}
+            </div>
+        </div>
+        {% endif %}
+        {% endif %}
+        
+        {% if msg.is_sticker or msg.is_photo %}
+        <div class="msg-plain" style="{% if msg.sender_id == current_user.id %}text-align: right;{% endif %}">
+            {% if msg.is_deleted %}
+            <div style="font-style: italic; opacity: 0.7; padding: 6px 10px;">{{ msg.content }}</div>
+            {% elif msg.is_sticker %}
+            <span class="sticker-big">{{ msg.content }}</span>
+            {% elif msg.is_photo %}
+            <img src="{{ url_for('static', filename='uploads/' + msg.content) }}" alt="photo">
+            {% endif %}
+            {% if not msg.is_deleted %}
+            <button onclick="toggleMenu({{ msg.id }})" class="msg-menu-btn" title="Меню">⋮</button>
+            {% endif %}
+        </div>
+        {% else %}
+        <div class="msg-bubble" style="background: {% if msg.sender_id == current_user.id %}color-mix(in srgb, var(--accent) 92%, transparent){% else %}color-mix(in srgb, var(--card) 95%, transparent){% endif %}; color: {% if msg.sender_id == current_user.id %}var(--accent-text){% else %}var(--text){% endif %};"><span class="msg-text">{% if msg.is_deleted %}<span style="font-style: italic; opacity: 0.75;">{{ msg.content }}</span>{% else %}{{ msg.content }}{% endif %}</span>{% if not msg.is_deleted %}<button onclick="event.stopPropagation(); toggleMenu({{ msg.id }})" class="msg-menu-btn" title="Меню">⋮</button>{% endif %}</div>
+        {% endif %}
+        
+        <div id="menu_{{ msg.id }}" style="display: none; background: color-mix(in srgb, var(--card) 96%, transparent); border: 1px solid var(--border); border-radius: 12px; padding: 10px; margin-top: 6px; max-width: 260px; width: 100%; backdrop-filter: blur(6px); box-shadow: 0 8px 20px rgba(0,0,0,0.2);">
+            <div style="margin-bottom: 8px;">
+                <div style="font-size: 11px; color: var(--muted); margin-bottom: 6px;">Реакции</div>
+                <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                    {% for r in ['❤️', '👍', '👎', '💘', '🤡', '🤔'] %}
+                    <form method="POST" action="{{ url_for('add_reaction') }}" style="display: inline;">
+                        <input type="hidden" name="msg_id" value="{{ msg.id }}">
+                        <input type="hidden" name="reaction" value="{{ r }}">
+                        <input type="hidden" name="chat_id" value="{{ chat_id }}">
+                        <button type="submit" class="btn" style="padding: 4px 8px; font-size: 14px; background: var(--panel); color: var(--text); box-shadow: none;">{{ r }}</button>
+                    </form>
+                    {% endfor %}
+                    {% if current_user.premium %}
+                    {% for r in ['xD', '🍌'] %}
+                    <form method="POST" action="{{ url_for('add_reaction') }}" style="display: inline;">
+                        <input type="hidden" name="msg_id" value="{{ msg.id }}">
+                        <input type="hidden" name="reaction" value="{{ r }}">
+                        <input type="hidden" name="chat_id" value="{{ chat_id }}">
+                        <button type="submit" class="btn" style="padding: 4px 8px; font-size: 14px; background: var(--panel); color: var(--text); box-shadow: none;">{{ r }}</button>
+                    </form>
+                    {% endfor %}
+                    {% endif %}
+                    {% if current_user.verified or current_user.is_admin %}
+                    <form method="POST" action="{{ url_for('add_reaction') }}" style="display: inline;">
+                        <input type="hidden" name="msg_id" value="{{ msg.id }}">
+                        <input type="hidden" name="reaction" value="🍆">
+                        <input type="hidden" name="chat_id" value="{{ chat_id }}">
+                        <button type="submit" class="btn" style="padding: 4px 8px; font-size: 14px; background: var(--panel); color: var(--text); box-shadow: none;">🍆</button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+            <button onclick="replyTo({{ msg.id }}, '{{ msg.sender_username|e }}')" style="background: none; border: none; color: var(--text); cursor: pointer; padding: 6px 0; width: 100%; text-align: left;">Ответить</button>
+            {% if msg.sender_id == current_user.id and not msg.is_deleted %}
+            <form method="POST" action="{{ url_for('delete_message') }}" style="width: 100%;">
+                <input type="hidden" name="msg_id" value="{{ msg.id }}">
+                <button type="submit" style="background: none; border: none; color: #ff4444; cursor: pointer; padding: 6px 0; width: 100%; text-align: left;">Удалить</button>
+            </form>
+            {% endif %}
+        </div>
+        
+        {% if msg_reactions[msg.id] %}
+        <div style="display: flex; gap: 5px; flex-wrap: wrap; margin-top: 4px; max-width: 78%; {% if msg.sender_id == current_user.id %}justify-content: flex-end;{% endif %}">
+            {% for r in msg_reactions[msg.id] %}
+            <form method="POST" action="{{ url_for('add_reaction') }}" style="display: inline;">
+                <input type="hidden" name="msg_id" value="{{ msg.id }}">
+                <input type="hidden" name="reaction" value="{{ r.reaction }}">
+                <input type="hidden" name="chat_id" value="{{ chat_id }}">
+                <button type="submit" style="background: color-mix(in srgb, var(--panel) 85%, transparent); border: 1px solid var(--border); border-radius: 12px; padding: 3px 8px; cursor: pointer; font-size: 12px; color: var(--text);">{{ r.reaction }} <span style="color: var(--muted); font-size: 11px;">{{ r.username }}</span></button>
+            </form>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+<div class="chat-input-wrap">
+    <div id="replyBar" style="display: none; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; margin-bottom: 8px; align-items: center; gap: 10px;">
+        <div style="flex: 1; min-width: 0;">
+            <div style="font-size: 11px; color: var(--accent);">Ответ на <span id="replyToName"></span></div>
+        </div>
+        <button onclick="cancelReply()" class="btn" style="padding: 2px 8px; background: var(--panel); color: var(--text); box-shadow: none;">✕</button>
+    </div>
+
+    <div style="display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; align-items: center;">
+        <button onclick="toggleStickers()" class="btn" style="padding: 6px 12px; background: var(--panel); color: var(--text); box-shadow: none;">😊 Стикеры</button>
+        <form method="POST" action="{{ url_for('upload_photo') }}" enctype="multipart/form-data" style="display: inline;">
+            <input type="hidden" name="chat_id" value="{{ chat_id }}">
+            <input type="hidden" name="reply_to" id="photoReplyTo">
+            <input type="file" name="photo" id="photoInput" style="display: none;" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp" onchange="this.form.submit()">
+            <button type="button" onclick="document.getElementById('photoInput').click()" class="btn" style="padding: 6px 12px; background: var(--panel); color: var(--text); box-shadow: none;">📷 Фото</button>
+        </form>
+    </div>
+    
+    <div id="stickerPanel" style="display: none; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 10px; margin-bottom: 8px; flex-wrap: wrap; gap: 6px; justify-content: center;">
+        {% for s in ['😂', '😍', '🔥', '👍', '😢', '🤡', '🎉', '😎', '🥲', '🤯'] %}
+        <form method="POST" action="{{ url_for('send_sticker') }}" style="display: inline;">
+            <input type="hidden" name="chat_id" value="{{ chat_id }}">
+            <input type="hidden" name="sticker" value="{{ s }}">
+            <input type="hidden" name="reply_to" class="stickerReplyTo">
+            <button type="submit" style="background: none; border: none; font-size: 34px; cursor: pointer; padding: 4px; border-radius: 8px; transition: transform 0.1s;" onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'">{{ s }}</button>
+        </form>
+        {% endfor %}
+    </div>
+    
+    <div style="display: flex; gap: 8px; align-items: center;">
+        <input type="text" id="messageInput" class="input" style="margin-bottom: 0; flex: 1;" placeholder="Сообщение..." onkeypress="if(event.key==='Enter'){sendMessage();}">
+        <input type="hidden" id="replyToId">
+        <button onclick="sendMessage()" class="btn" style="padding: 10px 16px;">➤</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const socket = io();
+const chatId = {{ chat_id }};
+socket.emit('join', {room: 'chat_' + chatId});
+
+function toggleMenu(id) {
+    let menu = document.getElementById('menu_' + id);
+    if (menu.style.display === 'none' || menu.style.display === '') {
+        document.querySelectorAll('[id^="menu_"]').forEach(m => m.style.display = 'none');
+        menu.style.display = 'block';
+    } else {
+        menu.style.display = 'none';
+    }
+}
+
+function toggleStickers() {
+    let panel = document.getElementById('stickerPanel');
+    if (panel.style.display === 'none' || panel.style.display === '') {
+        panel.style.display = 'flex';
+    } else {
+        panel.style.display = 'none';
+    }
+}
+
+let currentReplyId = null;
+function replyTo(id, name) {
+    currentReplyId = id;
+    document.getElementById('replyToId').value = id;
+    document.getElementById('photoReplyTo').value = id;
+    document.querySelectorAll('.stickerReplyTo').forEach(el => el.value = id);
+    document.getElementById('replyToName').textContent = name;
+    document.getElementById('replyBar').style.display = 'flex';
+    document.querySelectorAll('[id^="menu_"]').forEach(m => m.style.display = 'none');
+}
+
+function cancelReply() {
+    currentReplyId = null;
+    document.getElementById('replyToId').value = '';
+    document.getElementById('photoReplyTo').value = '';
+    document.querySelectorAll('.stickerReplyTo').forEach(el => el.value = '');
+    document.getElementById('replyBar').style.display = 'none';
+}
+
+function sendMessage() {
+    let input = document.getElementById('messageInput');
+    let content = input.value;
+    if (content.trim() === '') return;
+    socket.emit('send_message', {
+        chat_id: chatId,
+        content: content,
+        reply_to: currentReplyId
+    });
+    input.value = '';
+    cancelReply();
+}
+
+socket.on('chat_updated', function(data) {
+    if (data.chat_id == chatId) {
+        location.reload();
+    }
+});
+
+socket.on('error', function(data) {
+    alert(data.msg);
+});
+
+function scrollToBottom() {
+    let messagesDiv = document.getElementById('messages');
+    if (messagesDiv) messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+window.addEventListener('load', scrollToBottom);
+</script>
+{% endblock %}

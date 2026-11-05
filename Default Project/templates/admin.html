@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="header">
+    <a href="{{ url_for('search') }}" class="back-btn">← К чатам</a>
+    <h3 style="flex: 1;">Админ-панель</h3>
+</div>
+
+{% for u in users %}
+<div class="card">
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+        <div class="avatar" style="width: 60px; height: 60px; font-size: 24px;">
+            {% if u.avatar %}
+            <img src="{{ url_for('static', filename='uploads/' + u.avatar) }}">
+            {% else %}
+            {{ u.username[0].upper() }}
+            {% endif %}
+        </div>
+        <div style="flex: 1;">
+            <div style="display: flex; align-items: center; gap: 5px; flex-wrap: wrap;">
+                <strong style="font-size: 18px;">{{ u.username }}</strong>
+                {% if u.premium %}<span style="color: #ffd700;">★</span>{% endif %}
+                {% if u.is_online %}<span class="status-online">●</span>{% endif %}
+                {% if u.blocked %}<span style="color: #ff0000;">ЗАБЛОКИРОВАН</span>{% endif %}
+                {% if u.is_admin %}<span style="color: #ffd700;">АДМИН</span>{% endif %}
+                {% if u.is_admin %}<span style="color: #ffd700;">✔</span>{% elif u.verified %}<span style="color: #3399ff;">✓</span>{% endif %}
+            </div>
+            <div style="color: var(--muted); font-size: 13px;">Логин: {{ u.login }} | ID: {{ u.id }}</div>
+            <div style="color: var(--accent); font-size: 20px; font-weight: bold; margin-top: 5px;">{{ u.balance }} зан</div>
+        </div>
+    </div>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin-bottom: 15px;">
+        <form method="POST" action="{{ url_for('admin_give') }}" style="display: flex; gap: 5px;">
+            <input type="hidden" name="target_id" value="{{ u.id }}">
+            <input type="number" name="amount" class="input" style="margin-bottom: 0; padding: 5px;" placeholder="Сумма" required>
+            <button type="submit" class="btn" style="padding: 5px 10px; font-size: 12px;">Выдать зан</button>
+        </form>
+        <form method="POST" action="{{ url_for('admin_take') }}" style="display: flex; gap: 5px;">
+            <input type="hidden" name="target_id" value="{{ u.id }}">
+            <input type="number" name="amount" class="input" style="margin-bottom: 0; padding: 5px;" placeholder="Сумма" required>
+            <button type="submit" class="btn" style="padding: 5px 10px; font-size: 12px; background: #aa0000;">Списать зан</button>
+        </form>
+        <form method="POST" action="{{ url_for('admin_double') }}">
+            <input type="hidden" name="target_id" value="{{ u.id }}">
+            <button type="submit" class="btn" style="padding: 5px 10px; font-size: 12px;">Удвоить баланс</button>
+        </form>
+        <form method="POST" action="{{ url_for('admin_premium') }}">
+            <input type="hidden" name="target_id" value="{{ u.id }}">
+            <button type="submit" class="btn" style="padding: 5px 10px; font-size: 12px;">{% if u.premium %}Снять премиум{% else %}Выдать премиум{% endif %}</button>
+        </form>
+        <form method="POST" action="{{ url_for('admin_verify') }}">
+            <input type="hidden" name="target_id" value="{{ u.id }}">
+            <button type="submit" class="btn" style="padding: 5px 10px; font-size: 12px;">{% if u.verified %}Снять верификацию{% else %}Выдать верификацию{% endif %}</button>
+        </form>
+        <form method="POST" action="{{ url_for('admin_block') }}">
+            <input type="hidden" name="target_id" value="{{ u.id }}">
+            <button type="submit" class="btn" style="padding: 5px 10px; font-size: 12px; background: {% if u.blocked %}#00aa00{% else %}#aa0000{% endif %};">{% if u.blocked %}Разблокировать{% else %}Заблокировать{% endif %}</button>
+        </form>
+    </div>
+    
+    {% if all_usernames[u.id] %}
+    <div style="margin-bottom: 15px;">
+        <div style="font-weight: bold; margin-bottom: 8px;">Юзернеймы:</div>
+        {% for un in all_usernames[u.id] %}
+        <div style="display: flex; align-items: center; gap: 10px; padding: 6px 10px; background: var(--panel); border-radius: 6px; margin-bottom: 4px; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 120px;">@{{ un.uname }} ({{ un.score }})</div>
+            <form method="POST" action="{{ url_for('admin_set_rarity') }}" style="display: flex; gap: 5px;">
+                <input type="hidden" name="uname_id" value="{{ un.id }}">
+                <select name="rarity" class="input" style="margin-bottom: 0; padding: 4px; width: 120px;">
+                    <option value="common" {% if un.rarity == 'common' %}selected{% endif %}>Обычная</option>
+                    <option value="rare" {% if un.rarity == 'rare' %}selected{% endif %}>Редкая</option>
+                    <option value="epic" {% if un.rarity == 'epic' %}selected{% endif %}>Эпическая</option>
+                    <option value="myth" {% if un.rarity == 'myth' %}selected{% endif %}>Мифическая</option>
+                    <option value="legend" {% if un.rarity == 'legend' %}selected{% endif %}>Легендарная</option>
+                    <option value="67" {% if un.rarity == '67' %}selected{% endif %}>67</option>
+                </select>
+                <button type="submit" class="btn" style="padding: 4px 8px; font-size: 11px;">Установить</button>
+            </form>
+            <form method="POST" action="{{ url_for('admin_delete_uname') }}">
+                <input type="hidden" name="uname_id" value="{{ un.id }}">
+                <button type="submit" style="background: none; border: none; color: #ff3333; cursor: pointer; font-size: 18px;">✕</button>
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    
+    {% if u.id != current_user.id and not u.is_admin %}
+    <form method="POST" action="{{ url_for('admin_delete_account') }}" onsubmit="return confirm('Удалить аккаунт полностью?');">
+        <input type="hidden" name="target_id" value="{{ u.id }}">
+        <button type="submit" class="btn" style="background: #ff0000;">Удалить аккаунт целиком</button>
+    </form>
+    {% endif %}
+</div>
+{% endfor %}
+{% endblock %}

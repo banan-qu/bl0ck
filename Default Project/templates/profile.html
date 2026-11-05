@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="header">
+    <a href="{{ url_for('search') }}" class="back-btn">← К чатам</a>
+    <h3 style="flex: 1;">Профиль</h3>
+</div>
+
+<div class="card" style="padding: 0; overflow: hidden;">
+    {% if profile_user.banner %}
+    <div style="height: 120px; background: url('{{ url_for('static', filename='uploads/' + profile_user.banner) }}') center/cover;"></div>
+    {% else %}
+    <div style="height: 120px; background: linear-gradient(45deg, var(--accent), #ff66cc);"></div>
+    {% endif %}
+    <div style="padding: 15px; margin-top: -40px;">
+        <div class="avatar" style="width: 80px; height: 80px; font-size: 32px; border: 3px solid var(--card);">
+            {% if profile_user.avatar %}
+            <img src="{{ url_for('static', filename='uploads/' + profile_user.avatar) }}">
+            {% else %}
+            {{ profile_user.username[0].upper() }}
+            {% endif %}
+        </div>
+        <div style="margin-top: 10px;">
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <h2>{{ profile_user.username }}</h2>
+                {% if profile_user.premium_emoji %}<span style="font-size: 24px;">{{ profile_user.premium_emoji }}</span>{% endif %}
+                {% if profile_user.is_admin %}<span style="color: #ffd700; font-size: 20px;">✔</span>{% elif profile_user.verified %}<span style="color: #3399ff; font-size: 20px;">✓</span>{% endif %}
+            </div>
+            <div style="color: var(--muted); font-size: 12px; margin-top: 3px;">ID: {{ profile_user.id }}</div>
+            <div style="margin-top: 5px; font-size: 13px;">
+                {% if profile_user.is_online %}<span class="status-online">● В сети</span>{% elif profile_user.blocked %}<span class="status-blocked">🌐 200</span>{% else %}<span class="status-offline">● Не в сети</span>{% endif %}
+            </div>
+            {% if profile_user.bio %}
+            <div style="margin-top: 10px; color: var(--text);">{{ profile_user.bio }}</div>
+            {% else %}
+            <div style="margin-top: 10px; color: var(--muted);">о себе не указано</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if profile_user.id != current_user.id %}
+<div style="display: flex; gap: 10px; margin-bottom: 10px;">
+    <a href="{{ url_for('chat', other_id=profile_user.id) }}" class="btn" style="flex: 1; text-align: center;">Написать сообщение</a>
+    {% if not profile_user.is_admin %}
+        {% if is_blocked %}
+        <a href="{{ url_for('unblock_user', user_id=profile_user.id) }}" class="btn" style="background: #00aa00;">Разблокировать</a>
+        {% else %}
+        <a href="{{ url_for('block_user', user_id=profile_user.id) }}" class="btn" style="background: #aa0000;">Заблокировать</a>
+        {% endif %}
+    {% endif %}
+</div>
+{% endif %}
+
+<div class="card">
+    <h3 style="margin-bottom: 10px;">Юзернеймы</h3>
+    {% if usernames %}
+    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+        {% for un in usernames %}
+        {% set rcolor = '#9aa0a6' %}
+        {% set rtext = '#ffffff' %}
+        {% set rbg = 'linear-gradient(135deg, rgba(154,160,166,0.75) 0%, rgba(95,99,104,0.55) 100%)' %}
+        {% set rglow = 'rgba(154,160,166,0.22)' %}
+        {% set rborder = 'rgba(255,255,255,0.22)' %}
+        {% if un.rarity == 'legend' %}
+            {% set rcolor = '#ffd700' %}{% set rtext = '#241600' %}
+            {% set rbg = 'linear-gradient(135deg, rgba(255,248,214,0.98) 0%, rgba(255,215,0,0.95) 45%, rgba(255,170,0,0.88) 100%)' %}
+            {% set rglow = 'rgba(255,215,0,0.38)' %}{% set rborder = 'rgba(255,236,170,0.75)' %}
+        {% elif un.rarity == 'myth' %}
+            {% if un.id % 10 == 0 %}
+                {% set rcolor = '#ff4fd8' %}{% set rtext = '#ffffff' %}
+                {% set rbg = 'linear-gradient(135deg, #ff0044 0%, #ff8800 18%, #ffe600 36%, #00d084 54%, #0099ff 72%, #8a2be2 88%, #ff4fd8 100%)' %}
+                {% set rglow = 'rgba(255,79,216,0.32)' %}{% set rborder = 'rgba(255,255,255,0.45)' %}
+            {% else %}
+                {% set rcolor = '#ff3b3b' %}{% set rtext = '#fff5f5' %}
+                {% set rbg = 'linear-gradient(135deg, rgba(255,120,120,0.95) 0%, rgba(255,59,59,0.9) 45%, rgba(180,20,40,0.82) 100%)' %}
+                {% set rglow = 'rgba(255,59,59,0.34)' %}{% set rborder = 'rgba(255,170,170,0.55)' %}
+            {% endif %}
+        {% elif un.rarity == 'epic' %}
+            {% set rcolor = '#b366ff' %}{% set rtext = '#ffffff' %}
+            {% set rbg = 'linear-gradient(135deg, rgba(210,170,255,0.92) 0%, rgba(153,51,255,0.86) 50%, rgba(98,30,170,0.78) 100%)' %}
+            {% set rglow = 'rgba(153,51,255,0.32)' %}{% set rborder = 'rgba(220,190,255,0.5)' %}
+        {% elif un.rarity == 'rare' %}
+            {% set rcolor = '#5ab0ff' %}{% set rtext = '#ffffff' %}
+            {% set rbg = 'linear-gradient(135deg, rgba(150,210,255,0.92) 0%, rgba(51,153,255,0.86) 50%, rgba(20,90,180,0.78) 100%)' %}
+            {% set rglow = 'rgba(51,153,255,0.3)' %}{% set rborder = 'rgba(170,220,255,0.5)' %}
+        {% elif un.rarity == '67' %}
+            {% set rcolor = '#00e676' %}{% set rtext = '#002b12' %}
+            {% set rbg = 'linear-gradient(135deg, rgba(160,255,210,0.95) 0%, rgba(0,230,118,0.9) 55%, rgba(0,150,80,0.82) 100%)' %}
+            {% set rglow = 'rgba(0,230,118,0.3)' %}{% set rborder = 'rgba(180,255,220,0.55)' %}
+        {% endif %}
+        <button onclick="showUsernameModal({{ un.id }}, '@{{ un.uname }}', {{ un.score }}, '{{ un.reason|e }}', '{{ un.rarity }}', {{ un.is_nft }}, '{{ un.created_at }}')" 
+            style="background: {{ rbg }}; border: 1px solid {{ rborder }}; border-radius: 999px; padding: 9px 16px; color: {{ rtext }}; cursor: pointer; font-weight: 800; font-size: 14px; letter-spacing: 0.2px; box-shadow: 0 8px 18px {{ rglow }}, inset 0 1px 0 rgba(255,255,255,0.28), inset 0 -8px 14px rgba(0,0,0,0.08); transition: transform 0.15s, box-shadow 0.2s, filter 0.2s; text-shadow: 0 1px 2px rgba(0,0,0,0.22); backdrop-filter: blur(4px);"
+            onmouseover="this.style.transform='translateY(-2px) scale(1.01)'; this.style.filter='saturate(1.08) brightness(1.04)'; this.style.boxShadow='0 12px 22px {{ rglow }}';"
+            onmouseout="this.style.transform='translateY(0) scale(1)'; this.style.filter='none'; this.style.boxShadow='0 8px 18px {{ rglow }}, inset 0 1px 0 rgba(255,255,255,0.28), inset 0 -8px 14px rgba(0,0,0,0.08)';">@{{ un.uname }}</button>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div style="color: var(--muted); text-align: center; padding: 10px;">Юзов нет</div>
+    {% endif %}
+</div>
+
+<!-- Username Modal -->
+<div id="usernameModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center;">
+    <div class="card" style="max-width: 400px; width: 90%; position: relative;">
+        <button onclick="closeUsernameModal()" style="position: absolute; top: 10px; right: 10px; background: none; border: none; color: var(--text); font-size: 20px; cursor: pointer;">✕</button>
+        <h3 style="margin-bottom: 15px;" id="modalUname"></h3>
+        <div style="margin-bottom: 10px;">
+            <span>Бейдж редкости: </span>
+            <span id="modalRarity" class="badge"></span>
+        </div>
+        <div style="margin-bottom: 10px;">Баллы: <span id="modalScore"></span></div>
+        <div style="margin-bottom: 10px;">NFT: <span id="modalNft"></span></div>
+        <div style="margin-bottom: 10px;">
+            <div style="font-weight: bold; margin-bottom: 5px;">Полная разбивка оценки:</div>
+            <div id="modalReasons" style="color: var(--muted); font-size: 13px;"></div>
+        </div>
+        <div style="color: var(--muted); font-size: 12px;">Дата создания: <span id="modalDate"></span></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const rarityNames = {'common': 'Обычная', 'rare': 'Редкая', 'epic': 'Эпическая', 'myth': 'Мифическая', 'legend': 'Легендарная', '67': '67'};
+const rarityColors = {'common': '#808080', 'rare': '#3399ff', 'epic': '#9933ff', 'myth': '#ff3333', 'legend': '#ffd700', '67': '#006400'};
+
+function showUsernameModal(id, uname, score, reason, rarity, isNft, date) {
+    document.getElementById('modalUname').textContent = uname;
+    document.getElementById('modalScore').textContent = score;
+    document.getElementById('modalNft').textContent = isNft ? 'Да' : 'Нет';
+    document.getElementById('modalDate').textContent = date;
+    document.getElementById('modalReasons').textContent = reason.replace(/; /g, '\n');
+    
+    let rarityBadge = document.getElementById('modalRarity');
+    rarityBadge.textContent = rarityNames[rarity] || rarity;
+    rarityBadge.style.background = rarityColors[rarity] || '#808080';
+    rarityBadge.style.color = rarity === 'legend' || rarity === '67' ? '#000000' : '#ffffff';
+    
+    document.getElementById('usernameModal').style.display = 'flex';
+}
+
+function closeUsernameModal() {
+    document.getElementById('usernameModal').style.display = 'none';
+}
+</script>
+{% endblock %}

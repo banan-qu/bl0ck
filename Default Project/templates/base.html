@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>bl0ck</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        :root {
+            --bg: {{ theme.bg }};
+            --card: {{ theme.card }};
+            --panel: {{ theme.panel }};
+            --text: {{ theme.text }};
+            --muted: {{ theme.muted }};
+            --accent: {{ theme.accent }};
+            --accent-text: {{ theme.accent_text }};
+            --border: {{ theme.border }};
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        }
+        body {
+            background-color: {{ theme.bg if 'gradient' not in theme.bg else '#050505' }};
+            {% if theme.pattern != 'none' %}
+            background-image: {{ theme.pattern }};
+            background-size: auto, cover;
+            background-attachment: fixed;
+            {% elif 'gradient' in theme.bg %}
+            background: {{ theme.bg }};
+            background-attachment: fixed;
+            {% else %}
+            background: {{ theme.bg }};
+            {% endif %}
+            color: var(--text);
+            min-height: 100vh;
+            padding-bottom: 90px;
+            position: relative;
+        }
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background: 
+                radial-gradient(circle at 15% 20%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 35%),
+                radial-gradient(circle at 85% 80%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 40%),
+                repeating-linear-gradient(45deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 2px, transparent 2px, transparent 10px);
+            z-index: -1;
+        }
+        .container {
+            max-width: 460px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 10px 10px 0 10px;
+            position: relative;
+            z-index: 1;
+        }
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background: linear-gradient(135deg, color-mix(in srgb, var(--card) 88%, transparent), color-mix(in srgb, var(--panel) 82%, transparent));
+            border: 1px solid color-mix(in srgb, var(--border) 80%, var(--accent) 20%);
+            border-radius: 16px;
+            margin-bottom: 10px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+        }
+        .back-btn {
+            color: var(--text);
+            text-decoration: none;
+            font-size: 15px;
+            padding: 6px 10px;
+            border-radius: 10px;
+            transition: background 0.2s, transform 0.1s;
+            background: color-mix(in srgb, var(--panel) 60%, transparent);
+        }
+        .back-btn:hover {
+            background: color-mix(in srgb, var(--accent) 18%, var(--panel));
+            transform: translateX(-1px);
+        }
+        .card {
+            background: linear-gradient(160deg, color-mix(in srgb, var(--card) 84%, transparent), color-mix(in srgb, var(--panel) 78%, transparent));
+            border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+            border-radius: 16px;
+            padding: 15px;
+            margin-bottom: 10px;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 10px 26px rgba(0,0,0,0.14);
+            background-image: 
+                linear-gradient(160deg, rgba(255,255,255,0.03), rgba(255,255,255,0)),
+                repeating-linear-gradient(45deg, rgba(255,255,255,0.018) 0px, rgba(255,255,255,0.018) 1px, transparent 1px, transparent 8px),
+                repeating-linear-gradient(-45deg, rgba(0,0,0,0.02) 0px, rgba(0,0,0,0.02) 1px, transparent 1px, transparent 10px);
+            transition: transform 0.18s, box-shadow 0.2s, border-color 0.2s, background 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 14px 30px rgba(0,0,0,0.18);
+            border-color: color-mix(in srgb, var(--border) 60%, var(--accent) 40%);
+        }
+        .btn {
+            background: var(--accent);
+            color: var(--accent-text);
+            border: none;
+            padding: 9px 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 14px;
+            transition: filter 0.2s, transform 0.1s, opacity 0.2s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .btn:hover {
+            filter: brightness(1.08);
+            transform: translateY(-1px);
+        }
+        .btn:active {
+            transform: translateY(0);
+        }
+        .input, select, textarea {
+            width: 100%;
+            padding: 10px 12px;
+            background: color-mix(in srgb, var(--panel) 88%, transparent);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text);
+            margin-bottom: 10px;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+            background: color-mix(in srgb, var(--panel) 95%, transparent);
+        }
+        .flash {
+            background: color-mix(in srgb, var(--accent) 92%, transparent);
+            color: var(--accent-text);
+            padding: 10px 14px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            text-align: center;
+            backdrop-filter: blur(4px);
+        }
+        .bottom-nav {
+            position: fixed;
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: color-mix(in srgb, var(--card) 92%, transparent);
+            border: 1px solid var(--border);
+            border-radius: 25px;
+            display: flex;
+            gap: 2px;
+            padding: 5px 8px;
+            z-index: 100;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+            max-width: calc(100% - 16px);
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+        .nav-item {
+            color: var(--text);
+            text-decoration: none;
+            padding: 7px 10px;
+            border-radius: 18px;
+            font-size: 12px;
+            transition: background 0.2s, color 0.2s;
+            flex-shrink: 0;
+        }
+        .nav-item:hover {
+            background: color-mix(in srgb, var(--accent) 20%, var(--panel));
+            color: var(--text);
+        }
+        .avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: var(--accent-text);
+            overflow: hidden;
+        }
+        .avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .status-online {
+            color: #00ff00;
+        }
+        .status-offline {
+            color: #808080;
+        }
+        .status-blocked {
+            color: #ff0000;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div id="theme-decor">{{ theme.decor | safe }}</div>
+    <div class="container">
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="flash">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </div>
+    
+    {% if current_user %}
+    <nav class="bottom-nav">
+        <a href="{{ url_for('search') }}" class="nav-item">💬 Чаты</a>
+        {% if current_user.is_admin %}
+        <a href="{{ url_for('admin') }}" class="nav-item">🛠 Админка</a>
+        {% endif %}
+        <a href="{{ url_for('market') }}" class="nav-item">🛒 Маркет</a>
+        <a href="{{ url_for('wallet') }}" class="nav-item">💰 Кошелёк</a>
+        <a href="{{ url_for('settings') }}" class="nav-item">⚙️ Настройки</a>
+    </nav>
+    {% endif %}
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

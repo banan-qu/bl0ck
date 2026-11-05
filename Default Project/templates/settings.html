@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+{% block extra_css %}
+<style>
+    .theme-bubble {
+        padding: 12px 16px;
+        border-radius: 16px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 700;
+        transition: transform 0.15s, box-shadow 0.2s, border-color 0.2s, filter 0.2s;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.22);
+        min-width: 90px;
+        text-align: center;
+        user-select: none;
+        position: relative;
+        overflow: hidden;
+        text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+        backdrop-filter: blur(2px);
+    }
+    .theme-bubble:hover {
+        transform: translateY(-2px) scale(1.01);
+        box-shadow: 0 8px 18px rgba(0,0,0,0.28);
+        filter: brightness(1.05);
+    }
+    .theme-bubble.selected {
+        box-shadow: 0 0 0 2px rgba(255,255,255,0.55), 0 8px 18px rgba(0,0,0,0.28);
+        transform: translateY(-1px);
+    }
+    .theme-bubble.locked {
+        cursor: not-allowed;
+    }
+</style>
+{% endblock %}
+{% block content %}
+<div class="header">
+    <a href="{{ url_for('search') }}" class="back-btn">← К чатам</a>
+    <h3 style="flex: 1;">Настройки</h3>
+</div>
+
+<div class="card">
+    <h3 style="margin-bottom: 15px;">Профиль</h3>
+    <form method="POST" action="{{ url_for('update_profile') }}">
+        <input type="text" name="username" class="input" value="{{ user.username }}" placeholder="Отображаемое имя" required>
+        <textarea name="bio" class="input" placeholder="О себе" style="resize: vertical; min-height: 60px;">{{ user.bio }}</textarea>
+        
+        <div style="margin-bottom: 10px;">
+            <div style="margin-bottom: 5px; color: var(--muted);">Премиум-эмодзи рядом с именем</div>
+            <select name="premium_emoji" class="input" style="margin-bottom: 0;">
+                <option value="">Нет</option>
+                <option value="👑" {% if user.premium_emoji == '👑' %}selected{% endif %}>👑</option>
+                <option value="⭐" {% if user.premium_emoji == '⭐' %}selected{% endif %}>⭐</option>
+                <option value="🔥" {% if user.premium_emoji == '🔥' %}selected{% endif %}>🔥</option>
+                <option value="💎" {% if user.premium_emoji == '💎' %}selected{% endif %}>💎</option>
+                <option value="🦇" {% if user.premium_emoji == '🦇' %}selected{% endif %}>🦇</option>
+                {% for em in owned_emojis %}
+                {% if em %}
+                <option value="{{ em }}" {% if user.premium_emoji == em %}selected{% endif %}>{{ em }}</option>
+                {% endif %}
+                {% endfor %}
+            </select>
+        </div>
+        
+        <button type="submit" class="btn">Сохранить</button>
+    </form>
+</div>
+
+<div class="card">
+    <h3 style="margin-bottom: 15px;">Аватар</h3>
+    <form method="POST" action="{{ url_for('upload_avatar') }}" enctype="multipart/form-data">
+        <input type="file" name="avatar" class="input" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp" required>
+        <button type="submit" class="btn">Загрузить аватар</button>
+    </form>
+</div>
+
+<div class="card">
+    <h3 style="margin-bottom: 15px;">Баннер</h3>
+    {% if user.premium %}
+    <form method="POST" action="{{ url_for('upload_banner') }}" enctype="multipart/form-data">
+        <input type="file" name="banner" class="input" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp" required>
+        <button type="submit" class="btn">Загрузить баннер</button>
+    </form>
+    {% else %}
+    <div style="color: var(--muted);">Баннер только с премиумом</div>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h3 style="margin-bottom: 8px;">Тема оформления</h3>
+    <p style="color: var(--muted); font-size: 12px; margin-bottom: 12px;">Нажми на пузырь, чтобы выбрать тему. Нажми «Применить», чтобы сохранить. Если уйти без применения — тема не изменится.</p>
+    
+    <form method="POST" action="{{ url_for('update_profile') }}" id="themeForm">
+        <input type="hidden" name="username" value="{{ user.username }}">
+        <input type="hidden" name="bio" value="{{ user.bio }}">
+        <input type="hidden" name="premium_emoji" value="{{ user.premium_emoji }}">
+        <input type="hidden" name="theme" id="selectedTheme" value="{{ user.theme }}">
+        
+        <div style="font-weight: 600; margin: 10px 0 6px; color: var(--muted); font-size: 13px;">Бесплатные</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
+            {% for key, t in all_themes.items() %}
+            {% if key not in premium_themes %}
+            <div class="theme-bubble {% if user.theme == key %}selected{% endif %}" data-theme="{{ key }}" onclick="selectTheme('{{ key }}', this, false)" 
+                 style="background: {% if t.pattern != 'none' and 'gradient' in t.pattern %}{{ t.pattern }}{% elif 'gradient' in t.bg %}{{ t.bg }}{% else %}{{ t.accent }}{% endif %}; color: {{ t.accent_text }}; border: 2px solid {% if user.theme == key %}#fff{% else %}transparent{% endif %};">
+                {{ t.name }}
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+
+        <div style="font-weight: 600; margin: 10px 0 6px; color: var(--muted); font-size: 13px;">Премиумные</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
+            {% for key, t in all_themes.items() %}
+            {% if key in premium_themes %}
+            {% set locked = not user.premium %}
+            <div class="theme-bubble {% if user.theme == key %}selected{% endif %} {% if locked %}locked{% endif %}" data-theme="{{ key }}" 
+                 onclick="{% if locked %}alert('Премиум тема недоступна');{% else %}selectTheme('{{ key }}', this, false);{% endif %}"
+                 style="background: {% if t.pattern != 'none' %}{{ t.pattern }}{% elif 'gradient' in t.bg %}{{ t.bg }}{% else %}{{ t.accent }}{% endif %}; color: {{ t.text }}; border: 2px solid {% if user.theme == key %}#fff{% else %}transparent{% endif %}; {% if locked %}opacity: 0.55; filter: grayscale(0.3);{% endif %}">
+                {{ t.name }}{% if locked %} 🔒{% endif %}
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+
+        {% if owned_themes %}
+        <div style="font-weight: 600; margin: 10px 0 6px; color: var(--muted); font-size: 13px;">Купленные в маркете</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
+            {% for key in owned_themes %}
+            {% if key and key in market_themes %}
+            {% set mt = market_themes[key] %}
+            {% set mtt = mt.theme %}
+            <div class="theme-bubble {% if user.theme == key %}selected{% endif %}" data-theme="{{ key }}" onclick="selectTheme('{{ key }}', this, false)"
+                 style="background: {{ mtt.accent if mtt.accent else '#666' }}; color: {{ mtt.accent_text if mtt.accent_text else '#fff' }}; border: 2px solid {% if user.theme == key %}#fff{% else %}transparent{% endif %};">
+                {{ mt.name }}
+            </div>
+            {% elif key %}
+            <div class="theme-bubble {% if user.theme == key %}selected{% endif %}" data-theme="{{ key }}" onclick="selectTheme('{{ key }}', this, false)"
+                 style="background: var(--accent); color: var(--accent-text); border: 2px solid {% if user.theme == key %}#fff{% else %}transparent{% endif %};">
+                {{ key }}
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div style="display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap;">
+            <button type="submit" class="btn">Применить тему</button>
+            <a href="{{ url_for('search') }}" class="btn" style="background: var(--panel); color: var(--text); box-shadow: none;">Не применять</a>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <h3 style="margin-bottom: 15px;">Юзернеймы (@имя)</h3>
+    <p style="color: var(--muted); font-size: 13px; margin-bottom: 10px;">Максимум 5 юзернеймов. Только латиница, цифры, подчёркивания.</p>
+    
+    <div style="margin-bottom: 15px; display: flex; flex-direction: column; gap: 8px;">
+        {% if my_usernames %}
+        {% for un in my_usernames %}
+        {% set rcolor = '#9aa0a6' %}
+        {% set rtext = '#ffffff' %}
+        {% set rbg = 'linear-gradient(135deg, rgba(154,160,166,0.75) 0%, rgba(95,99,104,0.55) 100%)' %}
+        {% set rglow = 'rgba(154,160,166,0.2)' %}
+        {% set rborder = 'rgba(255,255,255,0.22)' %}
+        {% if un.rarity == 'legend' %}
+            {% set rcolor = '#ffd700' %}{% set rtext = '#241600' %}
+            {% set rbg = 'linear-gradient(135deg, rgba(255,248,214,0.98) 0%, rgba(255,215,0,0.95) 45%, rgba(255,170,0,0.88) 100%)' %}
+            {% set rglow = 'rgba(255,215,0,0.32)' %}{% set rborder = 'rgba(255,236,170,0.72)' %}
+        {% elif un.rarity == 'myth' %}
+            {% if un.id % 10 == 0 %}
+                {% set rcolor = '#ff4fd8' %}{% set rtext = '#ffffff' %}
+                {% set rbg = 'linear-gradient(135deg, #ff0044 0%, #ff8800 18%, #ffe600 36%, #00d084 54%, #0099ff 72%, #8a2be2 88%, #ff4fd8 100%)' %}
+                {% set rglow = 'rgba(255,79,216,0.28)' %}{% set rborder = 'rgba(255,255,255,0.42)' %}
+            {% else %}
+                {% set rcolor = '#ff3b3b' %}{% set rtext = '#fff5f5' %}
+                {% set rbg = 'linear-gradient(135deg, rgba(255,120,120,0.95) 0%, rgba(255,59,59,0.9) 45%, rgba(180,20,40,0.82) 100%)' %}
+                {% set rglow = 'rgba(255,59,59,0.3)' %}{% set rborder = 'rgba(255,170,170,0.52)' %}
+            {% endif %}
+        {% elif un.rarity == 'epic' %}
+            {% set rcolor = '#b366ff' %}{% set rtext = '#ffffff' %}
+            {% set rbg = 'linear-gradient(135deg, rgba(210,170,255,0.92) 0%, rgba(153,51,255,0.86) 50%, rgba(98,30,170,0.78) 100%)' %}
+            {% set rglow = 'rgba(153,51,255,0.28)' %}{% set rborder = 'rgba(220,190,255,0.48)' %}
+        {% elif un.rarity == 'rare' %}
+            {% set rcolor = '#5ab0ff' %}{% set rtext = '#ffffff' %}
+            {% set rbg = 'linear-gradient(135deg, rgba(150,210,255,0.92) 0%, rgba(51,153,255,0.86) 50%, rgba(20,90,180,0.78) 100%)' %}
+            {% set rglow = 'rgba(51,153,255,0.26)' %}{% set rborder = 'rgba(170,220,255,0.48)' %}
+        {% elif un.rarity == '67' %}
+            {% set rcolor = '#00e676' %}{% set rtext = '#002b12' %}
+            {% set rbg = 'linear-gradient(135deg, rgba(160,255,210,0.95) 0%, rgba(0,230,118,0.9) 55%, rgba(0,150,80,0.82) 100%)' %}
+            {% set rglow = 'rgba(0,230,118,0.26)' %}{% set rborder = 'rgba(180,255,220,0.52)' %}
+        {% endif %}
+        <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: {{ rbg }}; border: 1px solid {{ rborder }}; border-radius: 16px; box-shadow: 0 8px 18px {{ rglow }}, inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -8px 14px rgba(0,0,0,0.07); transition: transform 0.15s, filter 0.2s, box-shadow 0.2s; backdrop-filter: blur(4px);"
+             onmouseover="this.style.transform='translateY(-1px)'; this.style.filter='saturate(1.06) brightness(1.03)'; this.style.boxShadow='0 12px 22px {{ rglow }}';"
+             onmouseout="this.style.transform='translateY(0)'; this.style.filter='none'; this.style.boxShadow='0 8px 18px {{ rglow }}, inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -8px 14px rgba(0,0,0,0.07)';">
+            <div style="flex: 1; color: {{ rtext }}; font-weight: 800; letter-spacing: 0.2px; text-shadow: 0 1px 2px rgba(0,0,0,0.22);">@{{ un.uname }}</div>
+            <form method="POST" action="{{ url_for('delete_username') }}" style="margin: 0;">
+                <input type="hidden" name="uname_id" value="{{ un.id }}">
+                <button type="submit" title="Удалить" style="background: rgba(0,0,0,0.18); border: 1px solid rgba(255,255,255,0.18); color: {{ rtext }}; cursor: pointer; font-size: 15px; border-radius: 10px; padding: 3px 9px; transition: background 0.2s, transform 0.1s;" onmouseover="this.style.background='rgba(0,0,0,0.32)'" onmouseout="this.style.background='rgba(0,0,0,0.18)'">✕</button>
+            </form>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div style="color: var(--muted); text-align: center;">Юзов нет</div>
+        {% endif %}
+    </div>
+    
+    {% if my_usernames|length < 5 %}
+    <div>
+        <input type="text" id="newUsername" class="input" placeholder="Введите юзернейм без @" maxlength="20">
+        <button onclick="checkUsername()" class="btn">Проверить</button>
+    </div>
+    
+    <div id="usernameCheck" style="display: none; margin-top: 15px; padding: 10px; background: var(--panel); border-radius: 8px;">
+        <div style="margin-bottom: 10px;">
+            <strong>@<span id="checkUname"></span></strong>
+            <span id="checkRarity" class="badge" style="margin-left: 5px;"></span>
+        </div>
+        <div style="margin-bottom: 10px;">Оценка: <span id="checkScore"></span> баллов</div>
+        <div style="margin-bottom: 10px;">
+            <div style="font-weight: bold; margin-bottom: 5px;">Разбивка:</div>
+            <div id="checkReasons" style="font-size: 13px; color: var(--muted);"></div>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <form method="POST" action="{{ url_for('confirm_username') }}">
+                <input type="hidden" name="uname" id="confirmUname">
+                <button type="submit" class="btn">Создать юз</button>
+            </form>
+            <a href="{{ url_for('cancel_username') }}" class="btn" style="background: var(--muted);">Отмена</a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h3 style="margin-bottom: 15px; color: #ff3333;">Опасная зона</h3>
+    <form method="POST" action="{{ url_for('delete_my_account') }}" onsubmit="return confirm('Вы уверены, что хотите удалить аккаунт? Это действие необратимо!');">
+        <button type="submit" class="btn" style="background: #aa0000;">Удалить мой аккаунт</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const PREVIEW_THEMES = {{ preview_themes_json | safe }};
+
+function applyThemePreview(themeKey) {
+    const t = PREVIEW_THEMES[themeKey];
+    if (!t) return;
+    const root = document.documentElement;
+    root.style.setProperty('--bg', t.bg || '#000');
+    root.style.setProperty('--card', t.card || '#111');
+    root.style.setProperty('--panel', t.panel || '#151515');
+    root.style.setProperty('--text', t.text || '#fff');
+    root.style.setProperty('--muted', t.muted || '#aaa');
+    root.style.setProperty('--accent', t.accent || '#ff3333');
+    root.style.setProperty('--accent-text', t.accent_text || '#fff');
+    root.style.setProperty('--border', t.border || '#333');
+    
+    const body = document.body;
+    // Reset background styles
+    body.style.background = '';
+    body.style.backgroundColor = '';
+    body.style.backgroundImage = '';
+    body.style.backgroundSize = '';
+    body.style.backgroundAttachment = '';
+    
+    if (t.pattern && t.pattern !== 'none') {
+        body.style.backgroundColor = (t.bg && t.bg.indexOf('gradient') === -1) ? t.bg : '#050505';
+        body.style.backgroundImage = t.pattern;
+        body.style.backgroundSize = 'cover';
+        body.style.backgroundAttachment = 'fixed';
+    } else if (t.bg && t.bg.indexOf('gradient') !== -1) {
+        body.style.background = t.bg;
+        body.style.backgroundAttachment = 'fixed';
+    } else {
+        body.style.background = t.bg || '#000';
+    }
+    
+    const decor = document.getElementById('theme-decor');
+    if (decor) {
+        decor.innerHTML = t.decor || '';
+    }
+}
+
+function selectTheme(themeKey, el, locked) {
+    if (locked) return;
+    document.getElementById('selectedTheme').value = themeKey;
+    document.querySelectorAll('.theme-bubble').forEach(b => {
+        b.classList.remove('selected');
+        b.style.borderColor = 'transparent';
+    });
+    el.classList.add('selected');
+    el.style.borderColor = '#ffffff';
+    applyThemePreview(themeKey);
+}
+
+function checkUsername() {
+    let uname = document.getElementById('newUsername').value;
+    fetch('{{ url_for("check_username") }}', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: 'uname=' + encodeURIComponent(uname)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) {
+            alert(data.error);
+            return;
+        }
+        document.getElementById('checkUname').textContent = data.uname;
+        document.getElementById('confirmUname').value = data.uname;
+        document.getElementById('checkScore').textContent = data.score;
+        document.getElementById('checkRarity').textContent = data.rarity_name;
+        document.getElementById('checkRarity').style.background = data.rarity_color;
+        document.getElementById('checkRarity').style.color = (data.rarity === 'legend' || data.rarity === '67') ? '#000000' : '#ffffff';
+        
+        let reasonsDiv = document.getElementById('checkReasons');
+        reasonsDiv.innerHTML = '';
+        data.reasons.forEach(r => {
+            let div = document.createElement('div');
+            div.textContent = r;
+            reasonsDiv.appendChild(div);
+        });
+        
+        document.getElementById('usernameCheck').style.display = 'block';
+    });
+}
+</script>
+{% endblock %}

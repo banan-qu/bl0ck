@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="header">
+    <a href="{{ url_for('search') }}" class="back-btn">← К чатам</a>
+    <h3 style="flex: 1;">Кошелёк</h3>
+</div>
+
+<div class="card" style="text-align: center; padding: 30px;">
+    <div style="color: var(--muted); margin-bottom: 10px;">Баланс</div>
+    <div style="font-size: 42px; font-weight: bold; color: var(--accent);">{{ user.balance }} зан</div>
+</div>
+
+<div class="card">
+    <h3 style="margin-bottom: 15px;">Премиум</h3>
+    {% if user.premium %}
+    <div style="color: #00ff00; margin-bottom: 10px;">✓ Премиум активен</div>
+    {% else %}
+    <div style="color: var(--muted); margin-bottom: 15px;">Премиум стоит 500 зан</div>
+    <a href="{{ url_for('buy_premium') }}" class="btn">Купить премиум за 500 зан</a>
+    {% endif %}
+    <div style="margin-top: 15px; padding: 10px; background: var(--panel); border-radius: 8px;">
+        <div style="font-weight: bold; margin-bottom: 8px;">Премиум даёт:</div>
+        <ul style="margin-left: 20px; color: var(--muted);">
+            <li>Доступ к премиум-темам</li>
+            <li>Возможность ставить баннер в профиле</li>
+            <li>Премиум-эмодзи рядом с именем</li>
+            <li>Премиум-реакции xD и 🍌</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}
